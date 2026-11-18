@@ -1,0 +1,145 @@
+{
+  "id": "zPhOrJ7zz6Kak0H5",
+  "name": "Fitness Coach",
+  "versionId": "aa44bdf5-a20a-4229-a0c3-6d9bfe99e6b1",
+  "settings": { "executionOrder": "v1", "binaryMode": "separate", "availableInMCP": true },
+  "nodes": [
+    {
+      "parameters": { "httpMethod": "POST", "path": "fitness-coach", "authentication": "headerAuth", "responseMode": "responseNode", "options": {} },
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [-140, -96],
+      "id": "106af4d2-25e1-4161-b56d-f1fbf50bef37",
+      "webhookId": "0ec695ff-1c96-4e4e-9db4-52395c0c756d",
+      "credentials": { "httpHeaderAuth": { "id": "Ip7NUxDHVlgSvqfl", "name": "Header Auth account" } }
+    },
+    {
+      "parameters": {
+        "mode": "manual",
+        "assignments": {
+          "assignments": [
+            { "id": "a1", "name": "source", "value": "webhook", "type": "string" },
+            { "id": "a2", "name": "input.message", "value": "={{ String($json.body?.message ?? '').trim() }}", "type": "string" },
+            { "id": "a3", "name": "input.sessionId", "value": "={{ String($json.body?.sessionId ?? '').trim() }}", "type": "string" }
+          ]
+        },
+        "includeOtherFields": false,
+        "options": {}
+      },
+      "name": "Normalize – Webhook",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [80, -96],
+      "id": "2dedcc43-ea01-49b2-9f5c-3c5aa0bf8cd3"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 2 },
+          "combinator": "and",
+          "conditions": [
+            { "id": "c1", "leftValue": "={{ $json.input.message }}", "rightValue": "", "operator": { "type": "string", "operation": "notEmpty", "singleValue": true } },
+            { "id": "c2", "leftValue": "={{ $json.input.sessionId }}", "rightValue": "", "operator": { "type": "string", "operation": "notEmpty", "singleValue": true } },
+            { "id": "c3", "leftValue": "={{ $json.input.message.length }}", "rightValue": 2000, "operator": { "type": "number", "operation": "lte" } }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Valid input?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [300, -96],
+      "id": "3153fade-72b3-4324-8fcc-a98cbd1e8b28"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.input.message }}",
+        "options": {
+          "systemMessage": "You are Fitness Coach, a friendly, knowledgeable personal trainer. Give practical, safe advice on workouts, hypertrophy training, programming, recovery, and nutrition. Ask about the user's goals, experience, and any limitations when it matters. Keep answers concise and actionable. Format replies with light markdown: short paragraphs, bullet lists, **bold** for key points, and a small table when laying out a program or meal plan. For medical concerns or injuries, recommend seeing a qualified professional."
+        }
+      },
+      "name": "Fitness Coach",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [560, -96],
+      "id": "337114ae-16bb-48da-844e-b9acf44e0f97",
+      "onError": "continueErrorOutput",
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": { "model": "openai/gpt-4o-mini", "options": {} },
+      "name": "OpenRouter Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [480, 128],
+      "id": "82dc68d8-5959-4a6b-a22d-9533c100c4df",
+      "credentials": { "openRouterApi": { "id": "EpqxuzBmwhtogjzO", "name": "OpenRouter account" } }
+    },
+    {
+      "parameters": { "sessionIdType": "customKey", "sessionKey": "={{ $('Normalize – Webhook').item.json.input.sessionId }}", "contextWindowLength": 10 },
+      "name": "Window Buffer Memory",
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [640, 128],
+      "id": "1b85f542-63bb-4bbf-a37e-d24094ea2a13"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\n  \"success\": false,\n  \"error\": \"Both 'message' (1–2000 characters) and 'sessionId' are required.\"\n}",
+        "options": { "responseCode": 400 }
+      },
+      "name": "Respond 400 – Invalid input",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [560, 120],
+      "id": "bbe041e4-fa98-4a9a-8987-2488a9648516"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: true, data: { reply: $json.output } } }}",
+        "options": { "responseCode": 200 }
+      },
+      "name": "Respond 200 – Reply",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [900, -200],
+      "id": "488a4de2-b143-44ca-bf12-a98bebd8c0c8"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\n  \"success\": false,\n  \"error\": \"The coach is unavailable right now. Please try again.\"\n}",
+        "options": { "responseCode": 500 }
+      },
+      "name": "Respond 500 – Coach error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [900, 0],
+      "id": "3737c6f9-4af7-4f75-a37b-27fd63ae30a7"
+    }
+  ],
+  "connections": {
+    "Webhook": { "main": [[{ "node": "Normalize – Webhook", "type": "main", "index": 0 }]] },
+    "Normalize – Webhook": { "main": [[{ "node": "Valid input?", "type": "main", "index": 0 }]] },
+    "Valid input?": {
+      "main": [
+        [{ "node": "Fitness Coach", "type": "main", "index": 0 }],
+        [{ "node": "Respond 400 – Invalid input", "type": "main", "index": 0 }]
+      ]
+    },
+    "Fitness Coach": {
+      "main": [
+        [{ "node": "Respond 200 – Reply", "type": "main", "index": 0 }],
+        [{ "node": "Respond 500 – Coach error", "type": "main", "index": 0 }]
+      ]
+    },
+    "OpenRouter Chat Model": { "ai_languageModel": [[{ "node": "Fitness Coach", "type": "ai_languageModel", "index": 0 }]] },
+    "Window Buffer Memory": { "ai_memory": [[{ "node": "Fitness Coach", "type": "ai_memory", "index": 0 }]] }
+  }
+}
