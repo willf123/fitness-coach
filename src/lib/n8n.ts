@@ -14,10 +14,12 @@ const TIMEOUT_MS = 60_000;
  */
 export async function callN8n<T>(payload: unknown): Promise<CallResult<T>> {
   const url = process.env.N8N_WEBHOOK_URL;
-  const apiKey = process.env.N8N_API_KEY;
+  // Not N8N_API_KEY: that name is commonly taken by the n8n Public API key
+  // (used by n8n-mcp) and a shell env var would shadow .env.local.
+  const apiKey = process.env.N8N_WEBHOOK_API_KEY;
 
   if (!url || !apiKey) {
-    console.error("[n8n] N8N_WEBHOOK_URL or N8N_API_KEY is not set");
+    console.error("[n8n] N8N_WEBHOOK_URL or N8N_WEBHOOK_API_KEY is not set");
     return fail(500, "The coach isn't configured yet.");
   }
 

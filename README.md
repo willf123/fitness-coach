@@ -1,36 +1,51 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Coach
 
-## Getting Started
+A minimal, gamified chat app for the **Fitness Coach** n8n workflow. Users chat with an AI personal trainer and earn XP for check-ins. XP drives levels, daily streaks, a daily goal and badges.
 
-First, run the development server:
+**Stack:** Next.js (App Router) · React · TypeScript · Tailwind CSS · shadcn/ui
+**Backend:** n8n webhook (see [`n8n/contract.md`](n8n/contract.md), export in [`n8n/workflow.json`](n8n/workflow.json))
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+```
+browser → POST /api/chat → n8n webhook (x-api-key) → AI Agent → { success, data: { reply } }
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+The browser never calls n8n directly. The API key stays server-side.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Run locally
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+cp .env.example .env.local   # fill in both values
+npm install
+npm run dev                  # http://localhost:3000
+```
 
-## Learn More
+| Variable | Value |
+|---|---|
+| `N8N_WEBHOOK_URL` | Production webhook URL (`…/webhook/fitness-coach`) |
+| `N8N_WEBHOOK_API_KEY` | Value of the n8n "Header Auth account" credential |
 
-To learn more about Next.js, take a look at the following resources:
+> The key is intentionally **not** called `N8N_API_KEY`. That name usually holds the n8n Public API key (used by n8n-mcp), and an existing shell variable would silently override `.env.local`.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Gamification rules
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+All progress is stored in the browser (`localStorage`, key `coach.progress.v1`). There are no accounts. Rules live in [`src/lib/gamification.ts`](src/lib/gamification.ts).
 
-## Deploy on Vercel
+- **XP:** +10 per check-in. A message must have 3+ words, and XP pauses for 20s between messages. +15 for the first check-in of the day. +25 on reaching a 3-day streak, +50 every 7 days.
+- **Levels:** next level costs `50 + 25 × (level − 1)` XP. Rookie → Regular → Committed → Athlete → Elite → Legend (then Legend II, III…). Shown as plates loading onto a barbell.
+- **Streak:** consecutive calendar days with at least one check-in.
+- **Daily goal:** 3 check-ins.
+- **Badges:** First Rep, Warm-up, On a Roll, Week Strong, Fuel Up, Program Builder, Early Bird, Night Owl.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+XP is only awarded after the coach replies successfully.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Project layout
+
+```
+src/app/api/chat/route.ts   validates input, proxies to n8n
+src/lib/n8n.ts              the single n8n caller (timeout, error normalising)
+src/lib/gamification.ts     pure rules engine
+src/hooks/                  use-chat (history, session), use-progress (XP state)
+src/components/chat/        message list, markdown, composer, empty state
+src/components/progress/    barbell, goal ring, badges, panel, mobile sheet
+n8n/                        workflow export + contract
+```

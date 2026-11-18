@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { callN8n } from "@/lib/n8n";
 
-export const runtime = "nodejs";
 export const maxDuration = 60;
 
 const MAX_MESSAGE = 2000;

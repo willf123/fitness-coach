@@ -2,7 +2,7 @@
 
 - **Workflow:** Fitness Coach (`zPhOrJ7zz6Kak0H5`) on n8n Cloud
 - **Endpoint:** `POST {N8N_WEBHOOK_URL}` (production: `/webhook/fitness-coach`, test: `/webhook-test/fitness-coach`)
-- **Auth:** header `x-api-key: {N8N_API_KEY}` (n8n Header Auth credential "Header Auth account")
+- **Auth:** header `x-api-key: {N8N_WEBHOOK_API_KEY}` (n8n Header Auth credential "Header Auth account")
 - **Called only by** the Next.js route `POST /api/chat`. The browser never calls n8n directly.
 
 ## Request
